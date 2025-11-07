@@ -36,76 +36,75 @@ export function initialize() {
 
 export async function listRagStores(): Promise<RagStore[]> {
     if (!ai) throw new Error("Gemini AI not initialized");
-    // FIX: The `corpora` API is deprecated. Use `ai.rag.listCorpora` instead.
-    const response = await ai.rag.listCorpora();
-    const corpora = response.corpora || [];
-    const stores: RagStore[] = corpora.map(corpus => ({
-        name: corpus.name,
-        displayName: corpus.displayName || corpus.name.split('/').pop() || corpus.name,
-    }));
+    // FIX: The response is a Pager, which is an async iterator and does not contain
+    // a `fileSearchStores` property. We need to iterate over it to get the stores.
+    const response = await ai.fileSearchStores.list();
+    const stores: RagStore[] = [];
+    for await (const store of response) {
+        stores.push({
+            name: store.name,
+            displayName: store.displayName || store.name.split('/').pop() || store.name,
+        });
+    }
     return stores;
 }
 
 export async function listDocuments(ragStoreName: string): Promise<Document[]> {
     if (!ai) throw new Error("Gemini AI not initialized");
-    // FIX: The `corpora` API is deprecated. Use `ai.rag.listDocuments` instead.
-    const response = await ai.rag.listDocuments({ parent: ragStoreName });
-    const files = response.documents || [];
-    const documents: Document[] = files.map(file => ({
-        name: file.name,
-        displayName: file.displayName || file.name.split('/').pop() || file.name,
-        customMetadata: file.customMetadata,
-    }));
+    // FIX: The response is a Pager, which is an async iterator and does not contain
+    // a `documents` property. We need to iterate over it to get the documents.
+    const response = await ai.fileSearchStores.documents.list({ parent: ragStoreName });
+    const documents: Document[] = [];
+    for await (const file of response) {
+        documents.push({
+            name: file.name,
+            displayName: file.displayName || file.name.split('/').pop() || file.name,
+            customMetadata: file.customMetadata,
+        });
+    }
     return documents;
 }
 
 export async function createRagStore(displayName: string): Promise<string> {
     if (!ai) throw new Error("Gemini AI not initialized");
-    // FIX: The `corpora` API is deprecated. Use `ai.rag.createCorpus` instead.
-    const corpus = await ai.rag.createCorpus({ displayName });
-    if (!corpus.name) {
+    const store = await ai.fileSearchStores.create({ config: { displayName } });
+    if (!store.name) {
         throw new Error("Failed to create RAG store: name is missing.");
     }
-    return corpus.name;
+    return store.name;
 }
 
 export async function uploadToRagStore(ragStoreName: string, file: File, metadata: CustomMetadata[]): Promise<void> {
     if (!ai) throw new Error("Gemini AI not initialized");
     
-    // 1. Upload the file to the File Service.
-    // FIX: Corrected the call to `ai.files.upload` to pass the file object directly.
-    const uploadResponse = await ai.files.upload(file);
-
-    const uploadedFile = uploadResponse.file;
-
-    if (!uploadedFile || !uploadedFile.uri) {
-        throw new Error("File upload did not return a valid file resource with a URI.");
-    }
-
-    // 2. Link the uploaded file to the corpus by creating a Document in the corpus.
-    // FIX: The `corpora` API is deprecated. Use `ai.rag.createDocument` instead.
-    await ai.rag.createDocument({
-        parent: ragStoreName,
-        document: { 
-            name: `corpora/${ragStoreName.split('/')[1]}/documents/${uploadedFile.name.split('/')[1]}`,
+    let operation = await ai.fileSearchStores.uploadToFileSearchStore({
+        fileSearchStoreName: ragStoreName,
+        file: file,
+        config: {
             displayName: file.name,
             customMetadata: metadata.length > 0 ? metadata : undefined,
-        },
+        }
     });
+
+    // Wait until import is complete by polling the operation status.
+    while (operation && !operation.done) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
+        operation = await ai.operations.get({ operation: operation });
+    }
 }
 
 export async function deleteDocument(ragStoreName: string, docName: string): Promise<void> {
     if (!ai) throw new Error("Gemini AI not initialized");
-    // The docName is the full resource path from the list call.
-    // FIX: The `corpora` API is deprecated. Use `ai.rag.deleteDocument` instead.
-    await ai.rag.deleteDocument({
+    await ai.fileSearchStores.documents.delete({
         name: docName,
+        config: {
+            force: true, // Also delete underlying chunks and related objects.
+        }
     });
 }
 
 export async function fileSearch(ragStoreName: string, query: string): Promise<QueryResult> {
     if (!ai) throw new Error("Gemini AI not initialized");
-    // FIX: `safetySettings` and `tools` must be properties of a `config` object.
     const response: GenerateContentResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: [{ parts: [{ text: query }] }],
@@ -113,10 +112,8 @@ export async function fileSearch(ragStoreName: string, query: string): Promise<Q
             safetySettings: safetySettings,
             tools: [
                 {
-                    retrieval: {
-                        source: {
-                           corpus: ragStoreName,
-                        }
+                    fileSearch: {
+                        fileSearchStoreNames: [ragStoreName]
                     }
                 }
             ]
@@ -132,9 +129,10 @@ export async function fileSearch(ragStoreName: string, query: string): Promise<Q
 
 export async function deleteRagStore(ragStoreName: string): Promise<void> {
     if (!ai) throw new Error("Gemini AI not initialized");
-    // FIX: The `corpora` API is deprecated. Use `ai.rag.deleteCorpus` instead.
-    await ai.rag.deleteCorpus({
+    await ai.fileSearchStores.delete({
         name: ragStoreName,
-        force: true,
+        config: {
+             force: true,
+        }
     });
 }

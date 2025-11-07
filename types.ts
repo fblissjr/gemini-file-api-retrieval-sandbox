@@ -10,7 +10,9 @@ export interface RagStore {
 export interface CustomMetadata {
   key?: string;
   stringValue?: string;
-  stringListValue?: { values: string[] };
+  // FIX: The `values` property is optional in the Gemini SDK's `StringList` type.
+  // Making it optional here resolves the type incompatibility.
+  stringListValue?: { values?: string[] };
   numericValue?: number;
 }
 
