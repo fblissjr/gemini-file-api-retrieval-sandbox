@@ -23,6 +23,11 @@ const DocumentList: React.FC<DocumentListProps> = ({ selectedStore, documents, i
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [metadata, setMetadata] = useState<{ key: string, value: string }[]>([{ key: '', value: '' }]);
+    const [expandedDocName, setExpandedDocName] = useState<string | null>(null);
+
+    const handleToggleExpand = (docName: string) => {
+        setExpandedDocName(prev => (prev === docName ? null : docName));
+    };
 
     const handleUploadClick = () => {
         setIsUploadModalOpen(true);
@@ -152,32 +157,60 @@ const DocumentList: React.FC<DocumentListProps> = ({ selectedStore, documents, i
                 </div>
             ) : (
                 <ul className="space-y-2 overflow-y-auto">
-                    {documents.map((doc) => (
-                        <li key={doc.name} className="p-3 bg-gem-mist rounded-md group">
-                             <div className="flex items-center justify-between">
-                                <span className="truncate font-medium" title={doc.displayName}>{doc.displayName}</span>
-                                <button 
-                                    onClick={() => onDelete(doc.name)}
-                                    className="ml-2 p-1 text-red-400 hover:text-red-300 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                    aria-label={`Delete ${doc.displayName}`}
-                                    title={`Delete ${doc.displayName}`}
-                                >
-                                <TrashIcon />
-                                </button>
+                     {documents.map((doc) => (
+                        <li key={doc.name} className="bg-gem-mist rounded-md group transition-all duration-200">
+                             <div 
+                                className="p-3 flex items-center justify-between cursor-pointer"
+                                onClick={() => handleToggleExpand(doc.name)}
+                                role="button"
+                                aria-expanded={expandedDocName === doc.name}
+                                aria-controls={`doc-details-${doc.name.split('/').pop()}`}
+                            >
+                                <div className="flex-1 overflow-hidden pr-2">
+                                    <span className="truncate font-medium block" title={doc.displayName}>{doc.displayName}</span>
+                                    <span className="text-xs opacity-70 block truncate" title={doc.name}>ID: {doc.name.split('/').pop()}</span>
+                                </div>
+                                <div className="flex items-center shrink-0">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); onDelete(doc.name); }}
+                                        className="p-1 text-red-400 hover:text-red-300 rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                                        aria-label={`Delete ${doc.displayName}`}
+                                        title={`Delete ${doc.displayName}`}
+                                    >
+                                        <TrashIcon />
+                                    </button>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 transition-transform duration-200 ${expandedDocName === doc.name ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
                             </div>
-                             {doc.customMetadata && doc.customMetadata.length > 0 && (
-                                <div className="mt-2 pt-2 border-t border-gem-mist/50 text-xs">
-                                    <h4 className="font-semibold text-gem-offwhite/70 mb-1">Metadata:</h4>
-                                    <dl className="space-y-1">
-                                        {doc.customMetadata.map((meta, index) => (
-                                            meta.key && (
-                                                <div key={index} className="flex">
-                                                    <dt className="w-1/3 font-medium text-gem-offwhite/80 truncate pr-2" title={meta.key}>{meta.key}</dt>
-                                                    <dd className="w-2/3 text-gem-offwhite/60 truncate" title={meta.stringValue}>{meta.stringValue}</dd>
-                                                </div>
-                                            )
-                                        ))}
-                                    </dl>
+
+                            {expandedDocName === doc.name && (
+                                <div 
+                                    id={`doc-details-${doc.name.split('/').pop()}`}
+                                    className="px-3 pb-3 mt-2 border-t border-gem-mist/50 text-xs animate-fade-in"
+                                >
+                                    <div className="mt-2">
+                                        <h4 className="font-semibold text-gem-offwhite/70 mb-1">Full Name:</h4>
+                                        <p className="font-mono text-gem-offwhite/60 break-all pb-2">{doc.name}</p>
+                                    </div>
+                                    {doc.customMetadata && doc.customMetadata.length > 0 ? (
+                                        <div>
+                                            <h4 className="font-semibold text-gem-offwhite/70 mb-1">Metadata:</h4>
+                                            <dl className="space-y-1">
+                                                {doc.customMetadata.map((meta, index) => (
+                                                    meta.key && (
+                                                        <div key={index} className="flex">
+                                                            <dt className="w-1/3 font-medium text-gem-offwhite/80 truncate pr-2" title={meta.key}>{meta.key}</dt>
+                                                            <dd className="w-2/3 text-gem-offwhite/60 truncate" title={meta.stringValue}>{meta.stringValue}</dd>
+                                                        </div>
+                                                    )
+                                                ))}
+                                            </dl>
+                                        </div>
+                                    ) : (
+                                        <p className="text-gem-offwhite/60">No custom metadata.</p>
+                                    )}
                                 </div>
                             )}
                         </li>

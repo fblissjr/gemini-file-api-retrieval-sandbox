@@ -8,6 +8,8 @@ import Spinner from './Spinner';
 import PlusIcon from './icons/PlusIcon';
 import TrashIcon from './icons/TrashIcon';
 import RefreshIcon from './icons/RefreshIcon';
+import InfoIcon from './icons/InfoIcon';
+import InfoModal from './InfoModal';
 
 interface RagStoreListProps {
     stores: RagStore[];
@@ -20,15 +22,16 @@ interface RagStoreListProps {
 }
 
 const RagStoreList: React.FC<RagStoreListProps> = ({ stores, selectedStore, isLoading, onCreate, onSelect, onDelete, onRefresh }) => {
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
     const [newStoreName, setNewStoreName] = useState('');
 
     const handleCreateClick = () => {
-        setIsModalOpen(true);
+        setIsCreateModalOpen(true);
     };
 
     const handleModalClose = () => {
-        setIsModalOpen(false);
+        setIsCreateModalOpen(false);
         setNewStoreName('');
     };
 
@@ -46,6 +49,14 @@ const RagStoreList: React.FC<RagStoreListProps> = ({ stores, selectedStore, isLo
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">RAG Stores</h2>
                 <div className="flex items-center space-x-2">
+                     <button
+                        onClick={() => setIsInfoModalOpen(true)}
+                        className="p-2 bg-gem-mist hover:bg-gem-mist/70 rounded-full text-white transition-colors"
+                        aria-label="Information about RAG stores"
+                        title="Information about RAG stores"
+                    >
+                        <InfoIcon />
+                    </button>
                      <button
                         onClick={onRefresh}
                         className="p-2 bg-gem-mist hover:bg-gem-mist/70 rounded-full text-white transition-colors disabled:bg-gem-mist"
@@ -67,7 +78,9 @@ const RagStoreList: React.FC<RagStoreListProps> = ({ stores, selectedStore, isLo
                 </div>
             </div>
 
-            {isModalOpen && (
+            <InfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
+
+            {isCreateModalOpen && (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="create-store-title">
                     <div className="bg-gem-slate p-6 rounded-lg shadow-xl w-full max-w-md">
                         <h3 id="create-store-title" className="text-xl font-bold mb-4">Create New RAG Store</h3>
@@ -119,14 +132,22 @@ const RagStoreList: React.FC<RagStoreListProps> = ({ stores, selectedStore, isLo
                         <li key={store.name} className="flex items-center justify-between group">
                             <button
                                 onClick={() => onSelect(store)}
-                                className={`w-full text-left p-3 rounded-md transition-colors text-lg ${
+                                className={`w-full text-left p-3 rounded-md transition-colors ${
                                     selectedStore?.name === store.name
                                         ? 'bg-gem-blue text-white'
                                         : 'bg-gem-mist hover:bg-gem-mist/70'
                                 }`}
-                                title={`Select ${store.displayName} to view its documents`}
+                                title={store.displayName}
                             >
-                                {store.displayName}
+                                <div className="flex flex-col">
+                                    <span className="font-semibold text-lg truncate" title={store.displayName}>{store.displayName}</span>
+                                    <span 
+                                        className={`text-xs truncate ${selectedStore?.name === store.name ? 'opacity-80' : 'opacity-60'}`} 
+                                        title={store.name}
+                                    >
+                                        {store.name.split('/').pop()}
+                                    </span>
+                                </div>
                             </button>
                             <button 
                                 onClick={(e) => { e.stopPropagation(); onDelete(store.name); }}

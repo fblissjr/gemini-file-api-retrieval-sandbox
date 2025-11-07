@@ -1,5 +1,5 @@
 {
-  "name": "Gemini RAG Store Manager",
-  "description": "Upload any text-based files into a persistent RAG store and use Gemini to ask questions about their content. This demonstrates the power of the File Search API for Retrieval-Augmented Generation.",
+  "name": "gemini-file-api-retrieval-sandbox",
+  "description": "sandbox for testing gemini's file api and gemini embeddings",
   "requestFramePermissions": []
 }
