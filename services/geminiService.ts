@@ -129,10 +129,12 @@ export async function fileSearch(ragStoreName: string, query: string): Promise<Q
 
 export async function deleteRagStore(ragStoreName: string): Promise<void> {
     if (!ai) throw new Error("Gemini AI not initialized");
+    // FIX: The `force` parameter was causing a type error. It must be nested
+    // within a `config` object for this API call.
     await ai.fileSearchStores.delete({
         name: ragStoreName,
         config: {
-             force: true,
-        }
+            force: true,
+        },
     });
 }
